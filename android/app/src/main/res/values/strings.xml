@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Dolar APK</string>
+    <string name="title_activity_main">Dolar APK</string>
+    <string name="package_name">com.kbrgarcia.dolarapk</string>
+    <string name="custom_url_scheme">com.kbrgarcia.dolarapk</string>
+</resources>
