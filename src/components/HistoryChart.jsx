@@ -12,7 +12,11 @@ const VIEW_BOX = {
   padding: 28,
 }
 
-function getChartPoints(history, minValue, maxValue) {
+function getVisibleHistory(history) {
+  return history.slice(-CHART_LIMIT)
+}
+
+function getChartCoordinates(history, minValue, maxValue) {
   const visibleHistory = history.slice(-CHART_LIMIT)
   const range = maxValue - minValue || 1
   const chartWidth = VIEW_BOX.width - VIEW_BOX.padding * 2
@@ -29,7 +33,46 @@ function getChartPoints(history, minValue, maxValue) {
       chartHeight -
       ((item.value - minValue) / range) * chartHeight
 
-    return `${x.toFixed(2)},${y.toFixed(2)}`
+    return {
+      x,
+      y,
+      item,
+    }
+  })
+}
+
+function getHorizontalGuides(minValue, maxValue) {
+  const guideCount = 4
+  const range = maxValue - minValue || 1
+
+  return Array.from({ length: guideCount }, (_, index) => {
+    const ratio = index / (guideCount - 1)
+    const value = maxValue - range * ratio
+    const y =
+      VIEW_BOX.padding +
+      ratio * (VIEW_BOX.height - VIEW_BOX.padding * 2)
+
+    return { y, value }
+  })
+}
+
+function getVerticalGuides(series) {
+  const longestHistory = series.reduce((longest, currentSerie) => {
+    return currentSerie.history.length > longest.length ? currentSerie.history : longest
+  }, [])
+  const visibleHistory = getVisibleHistory(longestHistory)
+  const guideCount = Math.min(5, visibleHistory.length)
+  const chartWidth = VIEW_BOX.width - VIEW_BOX.padding * 2
+
+  if (guideCount === 0) return []
+
+  return Array.from({ length: guideCount }, (_, index) => {
+    const ratio = guideCount === 1 ? 0 : index / (guideCount - 1)
+    const historyIndex = Math.round(ratio * (visibleHistory.length - 1))
+    const item = visibleHistory[historyIndex]
+    const x = VIEW_BOX.padding + ratio * chartWidth
+
+    return { x, label: item?.date?.slice(5).replace('-', '/') ?? '' }
   })
 }
 
@@ -54,6 +97,14 @@ function HistoryChart({ historyById, loading, error, onRefresh }) {
       min: Math.min(...values),
       max: Math.max(...values),
     }
+  }, [selectedSeries])
+
+  const horizontalGuides = useMemo(() => {
+    return getHorizontalGuides(valueRange.min, valueRange.max)
+  }, [valueRange])
+
+  const verticalGuides = useMemo(() => {
+    return getVerticalGuides(selectedSeries)
   }, [selectedSeries])
 
   const toggleRate = (rateId) => {
@@ -132,6 +183,46 @@ function HistoryChart({ historyById, loading, error, onRefresh }) {
             aria-label="Gráfica histórica de monedas"
             className="h-72 w-full"
           >
+            {horizontalGuides.map((guide) => (
+              <g key={`h-${guide.y}`}>
+                <line
+                  x1={VIEW_BOX.padding}
+                  x2={VIEW_BOX.width - VIEW_BOX.padding}
+                  y1={guide.y}
+                  y2={guide.y}
+                  stroke="rgba(255,255,255,0.10)"
+                  strokeDasharray="6 8"
+                />
+                <text
+                  x={VIEW_BOX.padding + 6}
+                  y={guide.y - 6}
+                  fill="rgba(255,255,255,0.50)"
+                  fontSize="13"
+                >
+                  {valueFormatter.format(guide.value)}
+                </text>
+              </g>
+            ))}
+            {verticalGuides.map((guide) => (
+              <g key={`v-${guide.x}`}>
+                <line
+                  x1={guide.x}
+                  x2={guide.x}
+                  y1={VIEW_BOX.padding}
+                  y2={VIEW_BOX.height - VIEW_BOX.padding}
+                  stroke="rgba(255,255,255,0.07)"
+                />
+                <text
+                  x={guide.x}
+                  y={VIEW_BOX.height - 8}
+                  textAnchor="middle"
+                  fill="rgba(255,255,255,0.42)"
+                  fontSize="12"
+                >
+                  {guide.label}
+                </text>
+              </g>
+            ))}
             <line
               x1={VIEW_BOX.padding}
               x2={VIEW_BOX.width - VIEW_BOX.padding}
@@ -146,30 +237,50 @@ function HistoryChart({ historyById, loading, error, onRefresh }) {
               y2={VIEW_BOX.height - VIEW_BOX.padding}
               stroke="rgba(255,255,255,0.18)"
             />
-            {selectedSeries.map((serie) => (
-              <polyline
-                key={serie.id}
-                fill="none"
-                stroke={serie.color}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="4"
-                points={getChartPoints(serie.history, valueRange.min, valueRange.max).join(
-                  ' ',
-                )}
-              />
-            ))}
-            <text x="36" y="22" fill="rgba(255,255,255,0.65)" fontSize="18">
-              {valueFormatter.format(valueRange.max)} Bs.
-            </text>
-            <text
-              x="36"
-              y={VIEW_BOX.height - 8}
-              fill="rgba(255,255,255,0.65)"
-              fontSize="18"
-            >
-              {valueFormatter.format(valueRange.min)} Bs.
-            </text>
+            {selectedSeries.map((serie) => {
+              const coordinates = getChartCoordinates(
+                serie.history,
+                valueRange.min,
+                valueRange.max,
+              )
+              const latestPoint = coordinates.at(-1)
+
+              return (
+                <g key={serie.id}>
+                  <polyline
+                    fill="none"
+                    stroke={serie.color}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="4"
+                    points={coordinates
+                      .map((point) => `${point.x.toFixed(2)},${point.y.toFixed(2)}`)
+                      .join(' ')}
+                  />
+                  {latestPoint && (
+                    <>
+                      <circle
+                        cx={latestPoint.x}
+                        cy={latestPoint.y}
+                        r="5"
+                        fill={serie.color}
+                        stroke="#0f172a"
+                        strokeWidth="3"
+                      />
+                      <text
+                        x={Math.min(latestPoint.x + 10, VIEW_BOX.width - 92)}
+                        y={Math.max(latestPoint.y - 10, 16)}
+                        fill={serie.color}
+                        fontSize="13"
+                        fontWeight="700"
+                      >
+                        {valueFormatter.format(latestPoint.item.value)}
+                      </text>
+                    </>
+                  )}
+                </g>
+              )
+            })}
           </svg>
         )}
       </div>
