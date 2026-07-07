@@ -1,3 +1,4 @@
+import { Capacitor } from '@capacitor/core'
 import { Download } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
@@ -8,6 +9,7 @@ function isAndroidBrowser() {
 }
 
 function DownloadBtn() {
+  const isNativeApp = Capacitor.isNativePlatform()
   const isAndroid = isAndroidBrowser()
   const apkFileName = '$k-dolar.apk'
   const apkUrl = `${import.meta.env.BASE_URL}${apkFileName}`
@@ -16,6 +18,8 @@ function DownloadBtn() {
   const isApkAvailable = downloadStatus === 'available'
 
   useEffect(() => {
+    if (isNativeApp) return undefined
+
     const controller = new AbortController()
 
     fetch(apkUrl, {
@@ -39,7 +43,9 @@ function DownloadBtn() {
     return () => {
       controller.abort()
     }
-  }, [apkUrl])
+  }, [apkUrl, isNativeApp])
+
+  if (isNativeApp) return null
 
   return (
     <section className="rounded-4xl border border-white/10 bg-white/10 p-5 text-center shadow-2xl shadow-sky-950/30 backdrop-blur sm:p-6">
