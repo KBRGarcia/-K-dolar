@@ -3,7 +3,7 @@
   "appName": "$K Dolar",
   "webDir": "dist",
   "server": {
-    "url": "https://kbrgarcia.github.io/dolar-apk/",
+    "url": "https://k-dolar.vercel.app/",
     "cleartext": false
   }
 }
