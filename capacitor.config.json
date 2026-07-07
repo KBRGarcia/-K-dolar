@@ -1,9 +1,9 @@
 {
   "appId": "com.kbrgarcia.dolarapk",
-  "appName": "Dolar APK",
+  "appName": "$K Dolar",
   "webDir": "dist",
   "server": {
     "url": "https://kbrgarcia.github.io/dolar-apk/",
-    "cleartext": true
+    "cleartext": false
   }
 }

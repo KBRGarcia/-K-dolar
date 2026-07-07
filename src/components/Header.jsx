@@ -47,10 +47,10 @@ function Header({
           <div className="mb-4 inline-flex items-center gap-3 rounded-full border border-sky-300/20 bg-sky-300/10 py-1 pl-1 pr-4 text-xs font-semibold uppercase tracking-[0.24em] text-sky-200">
             <img
               src={logoUrl}
-              alt="Logo Dolar APK"
+              alt="Logo $K Dolar"
               className="h-10 w-10 rounded-full object-cover ring-1 ring-white/20"
             />
-            Dolar APK
+            $K Dolar
           </div>
 
           <h1 className="text-3xl font-bold tracking-tight text-white sm:text-5xl">
