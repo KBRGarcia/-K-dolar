@@ -76,27 +76,27 @@ function Header({
         </button>
       </div>
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-2">
-        <div className="rounded-3xl border border-emerald-300/20 bg-emerald-300/10 p-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-200">
+      <div className="mt-6 grid grid-cols-2 gap-3">
+        <div className="rounded-3xl border border-emerald-300/20 bg-emerald-300/10 p-3 sm:p-4">
+          <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-emerald-200 sm:text-xs sm:tracking-[0.2em]">
             {selectedRate?.title ?? 'Cotización seleccionada'}
           </p>
-          <p className="mt-2 text-3xl font-bold text-white">
+          <p className="mt-2 text-xl font-bold text-white sm:text-3xl">
             {loading ? 'Consultando...' : formatRate(currentRate)}
           </p>
         </div>
 
-        <div className="rounded-3xl border border-white/10 bg-slate-950/50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+        <div className="rounded-3xl border border-white/10 bg-slate-950/50 p-3 sm:p-4">
+          <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-slate-400 sm:text-xs sm:tracking-[0.2em]">
             Última actualización
           </p>
-          <p className="mt-2 text-lg font-semibold text-slate-100">
+          <p className="mt-2 text-sm font-semibold text-slate-100 sm:text-lg">
             {loading ? 'Sincronizando datos' : formatUpdatedAt(updatedAt)}
           </p>
         </div>
       </div>
 
-      <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="mt-5 grid grid-cols-3 gap-2 sm:gap-3">
         {RATE_OPTIONS.map((option) => {
           const rate = ratesById[option.id]
           const isSelected = selectedRateId === option.id
@@ -106,16 +106,18 @@ function Header({
               key={option.id}
               type="button"
               onClick={() => onSelectRate(option.id)}
-              className={`rounded-2xl border p-4 text-center transition ${
-                isSelected
+              className={`rounded-2xl border px-2 py-3 text-center transition sm:p-4 ${isSelected
                   ? 'border-sky-300 bg-sky-400 text-slate-950 shadow-lg shadow-sky-500/25'
                   : 'border-white/10 bg-slate-900/70 text-white hover:border-sky-300/50 hover:bg-slate-800'
-              }`}
+                }`}
             >
-              <span className="block text-sm font-bold sm:text-base">
+              <span className="block text-xs font-bold leading-tight sm:text-base">
                 {option.title}
               </span>
-              <span className="mt-2 block text-xl font-black">
+              <span className="mt-2 block text-lg font-black sm:hidden">
+                {option.symbol}
+              </span>
+              <span className="mt-2 hidden text-xl font-black sm:block">
                 {loading ? option.symbol : formatRate(rate?.average)}
               </span>
             </button>

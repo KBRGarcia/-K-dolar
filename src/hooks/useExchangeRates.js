@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { API_BASE_URL, DEFAULT_RATE_ID, RATE_OPTIONS } from '../constants/rates'
+import { readCache, writeCache } from '../utils/cacheStorage'
+
+const EXCHANGE_RATES_CACHE_KEY = 'k-dolar:exchange-rates'
 
 function getNumericRate(rate) {
   const value = rate.promedio ?? rate.venta ?? rate.compra
@@ -32,10 +35,13 @@ function getLatestUpdate(rates) {
 }
 
 export function useExchangeRates() {
-  const [rates, setRates] = useState([])
-  const [loading, setLoading] = useState(true)
+  const cachedRates = readCache(EXCHANGE_RATES_CACHE_KEY, [])
+  const [rates, setRates] = useState(cachedRates)
+  const [loading, setLoading] = useState(cachedRates.length === 0)
   const [error, setError] = useState(null)
+  const [isUsingCache, setIsUsingCache] = useState(cachedRates.length > 0)
   const abortControllerRef = useRef(null)
+  const ratesRef = useRef(cachedRates)
 
   const fetchRates = useCallback(async () => {
     abortControllerRef.current?.abort()
@@ -63,14 +69,19 @@ export function useExchangeRates() {
       )
 
       setRates(responses)
+      ratesRef.current = responses
+      writeCache(EXCHANGE_RATES_CACHE_KEY, responses)
+      setIsUsingCache(false)
     } catch (fetchError) {
       if (fetchError.name === 'AbortError') return
 
       setError(
-        fetchError.message ||
-          'No se pudieron consultar las cotizaciones. Verifica tu conexión.',
+        ratesRef.current.length > 0
+          ? 'Sin conexión. Mostrando la última cotización guardada.'
+          : fetchError.message ||
+              'No se pudieron consultar las cotizaciones. Verifica tu conexión.',
       )
-      setRates([])
+      setIsUsingCache(ratesRef.current.length > 0)
     } finally {
       if (abortControllerRef.current === controller) {
         setLoading(false)
@@ -103,6 +114,18 @@ export function useExchangeRates() {
     }
   }, [fetchRates])
 
+  useEffect(() => {
+    const handleOnline = () => {
+      fetchRates()
+    }
+
+    window.addEventListener('online', handleOnline)
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+    }
+  }, [fetchRates])
+
   return {
     rates,
     ratesById,
@@ -110,6 +133,7 @@ export function useExchangeRates() {
     updatedAt: latestUpdatedAt,
     loading,
     error,
+    isUsingCache,
     refresh: fetchRates,
   }
 }

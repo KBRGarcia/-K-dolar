@@ -27,7 +27,6 @@ function formatDate(dateValue) {
 function getTrend(item) {
   if (item.change > 0) {
     return {
-      label: 'Ascenso',
       className: 'text-emerald-300',
       icon: ArrowUp,
     }
@@ -35,14 +34,12 @@ function getTrend(item) {
 
   if (item.change < 0) {
     return {
-      label: 'Descenso',
       className: 'text-red-300',
       icon: ArrowDown,
     }
   }
 
   return {
-    label: 'Sin cambio',
     className: 'text-slate-300',
     icon: ArrowRight,
   }
@@ -58,7 +55,7 @@ function HistoryTable({ historyById, loading }) {
 
   return (
     <section className="rounded-4xl border border-white/10 bg-white/10 p-5 shadow-2xl shadow-sky-950/30 backdrop-blur sm:p-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="flex flex-col gap-4">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.24em] text-sky-200">
             Tabla
@@ -71,20 +68,32 @@ function HistoryTable({ historyById, loading }) {
           </p>
         </div>
 
-        <label className="text-sm font-semibold text-slate-300">
-          Moneda
-          <select
-            value={selectedRateId}
-            onChange={(event) => setSelectedRateId(event.target.value)}
-            className="mt-2 block w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none focus:border-sky-300 sm:w-64"
-          >
-            {RATE_OPTIONS.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.title}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
+            Filtrar moneda
+          </p>
+          <div className="mt-3 grid grid-cols-3 gap-2 rounded-3xl border border-white/10 bg-slate-950/50 p-2">
+            {RATE_OPTIONS.map((option) => {
+              const isSelected = selectedRateId === option.id
+
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => setSelectedRateId(option.id)}
+                  className={`rounded-2xl px-2 py-3 text-center text-xs font-bold leading-tight transition sm:text-sm ${
+                    isSelected
+                      ? 'bg-sky-400 text-slate-950 shadow-lg shadow-sky-500/20'
+                      : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                  }`}
+                  aria-pressed={isSelected}
+                >
+                  {option.title}
+                </button>
+              )
+            })}
+          </div>
+        </div>
       </div>
 
       <div className="mt-6 overflow-hidden rounded-3xl border border-white/10">

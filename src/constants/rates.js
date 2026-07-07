@@ -14,10 +14,10 @@ export const RATE_OPTIONS = [
   },
   {
     id: 'dolar-paralelo',
-    title: 'Dólar Paralelo',
-    shortTitle: 'Dólar Paralelo',
+    title: 'USDT',
+    shortTitle: 'USDT',
     currency: 'USD',
-    symbol: '$',
+    symbol: 'USDT',
     source: 'paralelo',
     endpoint: '/v1/dolares/paralelo',
     historyEndpoint: '/v1/historicos/dolares/paralelo',

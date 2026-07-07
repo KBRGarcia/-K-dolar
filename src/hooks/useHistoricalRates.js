@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { API_BASE_URL, RATE_OPTIONS } from '../constants/rates'
+import { readCache, writeCache } from '../utils/cacheStorage'
+
+const HISTORICAL_RATES_CACHE_KEY = 'k-dolar:historical-rates'
 
 function getNumericRate(rate) {
   const value = rate.promedio ?? rate.venta ?? rate.compra
@@ -27,10 +30,16 @@ function normalizeHistoryItem(item, index, history) {
 }
 
 export function useHistoricalRates(enabled = true) {
-  const [historyById, setHistoryById] = useState({})
+  const cachedHistory = readCache(HISTORICAL_RATES_CACHE_KEY, {})
+  const [historyById, setHistoryById] = useState(cachedHistory)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [isUsingCache, setIsUsingCache] = useState(
+    Object.values(cachedHistory).some((history) => history.length > 0),
+  )
   const abortControllerRef = useRef(null)
+  const didFetchRef = useRef(false)
+  const historyRef = useRef(cachedHistory)
 
   const fetchHistory = useCallback(async () => {
     abortControllerRef.current?.abort()
@@ -68,15 +77,26 @@ export function useHistoricalRates(enabled = true) {
         }),
       )
 
-      setHistoryById(Object.fromEntries(histories))
+      const normalizedHistory = Object.fromEntries(histories)
+
+      setHistoryById(normalizedHistory)
+      historyRef.current = normalizedHistory
+      writeCache(HISTORICAL_RATES_CACHE_KEY, normalizedHistory)
+      setIsUsingCache(false)
     } catch (fetchError) {
       if (fetchError.name === 'AbortError') return
 
-      setError(
-        fetchError.message ||
-          'No se pudo consultar el histórico. Verifica tu conexión.',
+      const hasCachedHistory = Object.values(historyRef.current).some(
+        (history) => history.length > 0,
       )
-      setHistoryById({})
+
+      setError(
+        hasCachedHistory
+          ? 'Sin conexión. Mostrando el último histórico guardado.'
+          : fetchError.message ||
+              'No se pudo consultar el histórico. Verifica tu conexión.',
+      )
+      setIsUsingCache(hasCachedHistory)
     } finally {
       if (abortControllerRef.current === controller) {
         setLoading(false)
@@ -90,8 +110,9 @@ export function useHistoricalRates(enabled = true) {
   }, [historyById])
 
   useEffect(() => {
-    if (!enabled || hasHistory) return undefined
+    if (!enabled || didFetchRef.current) return undefined
 
+    didFetchRef.current = true
     fetchHistory()
 
     return () => {
@@ -100,12 +121,28 @@ export function useHistoricalRates(enabled = true) {
       abortControllerRef.current = null
       controller?.abort()
     }
-  }, [enabled, fetchHistory, hasHistory])
+  }, [enabled, fetchHistory])
+
+  useEffect(() => {
+    const handleOnline = () => {
+      if (enabled) {
+        fetchHistory()
+      }
+    }
+
+    window.addEventListener('online', handleOnline)
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+    }
+  }, [enabled, fetchHistory])
 
   return {
     historyById,
     loading,
     error,
+    hasHistory,
+    isUsingCache,
     refresh: fetchHistory,
   }
 }
