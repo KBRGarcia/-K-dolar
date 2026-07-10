@@ -25,6 +25,7 @@ function App() {
     refresh: refreshHistory,
   } = useHistoricalRates(activeView === 'history')
   const activeRate = ratesById[selectedRateId] ?? null
+  const isParallelRateSelected = selectedRateId === 'dolar-paralelo'
 
   return (
     <main className="min-h-screen overflow-hidden bg-slate-950 px-4 py-6 text-white sm:px-6 lg:px-8">
@@ -39,6 +40,20 @@ function App() {
           onRefresh={refresh}
           onSelectRate={setSelectedRateId}
         />
+
+        {isParallelRateSelected && (
+          <div
+            role="alert"
+            className="rounded-3xl border border-amber-300/25 bg-amber-300/10 p-4 text-sm leading-6 text-amber-100"
+          >
+            <strong className="font-semibold">
+              Aviso sobre el USDT:
+            </strong>{' '}
+            el monto mostrado es un promedio referencial y puede aumentar o
+            disminuir según la transacción que se desee realizar. Recuerda que
+            las transacciones con esta moneda pueden incluir comisión.
+          </div>
+        )}
 
         <nav className="grid grid-cols-2 gap-3 rounded-3xl border border-white/10 bg-white/10 p-2 backdrop-blur">
           {[
