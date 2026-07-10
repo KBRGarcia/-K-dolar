@@ -29,6 +29,7 @@ function getTrend(item) {
     return {
       className: 'text-emerald-300',
       icon: ArrowUp,
+      label: 'Subió',
     }
   }
 
@@ -36,12 +37,14 @@ function getTrend(item) {
     return {
       className: 'text-red-300',
       icon: ArrowDown,
+      label: 'Bajó',
     }
   }
 
   return {
     className: 'text-slate-300',
     icon: ArrowRight,
+    label: 'Sin cambio',
   }
 }
 

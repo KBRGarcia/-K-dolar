@@ -77,7 +77,7 @@ function getVerticalGuides(series) {
 }
 
 function HistoryChart({ historyById, loading, error, onRefresh }) {
-  const [selectedIds, setSelectedIds] = useState(RATE_OPTIONS.map((rate) => rate.id))
+  const [selectedIds, setSelectedIds] = useState(['dolar-oficial', 'dolar-paralelo'])
 
   const selectedSeries = useMemo(() => {
     return RATE_OPTIONS.map((option) => ({

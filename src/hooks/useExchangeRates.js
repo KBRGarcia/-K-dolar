@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { API_BASE_URL, DEFAULT_RATE_ID, RATE_OPTIONS } from '../constants/rates'
 import { readCache, writeCache } from '../utils/cacheStorage'
+import { fetchWithTimeout } from '../utils/fetchWithTimeout'
 
 const EXCHANGE_RATES_CACHE_KEY = 'k-dolar:exchange-rates'
 
@@ -53,9 +54,9 @@ export function useExchangeRates() {
     setError(null)
 
     try {
-      const responses = await Promise.all(
+      const results = await Promise.allSettled(
         RATE_OPTIONS.map(async (option) => {
-          const response = await fetch(`${API_BASE_URL}${option.endpoint}`, {
+          const response = await fetchWithTimeout(`${API_BASE_URL}${option.endpoint}`, {
             headers: { Accept: 'application/json' },
             signal: controller.signal,
           })
@@ -67,13 +68,42 @@ export function useExchangeRates() {
           return normalizeRate(await response.json(), option)
         }),
       )
+      const responses = results
+        .filter((result) => result.status === 'fulfilled')
+        .map((result) => result.value)
+      const failedOptions = RATE_OPTIONS.filter(
+        (_, index) => results[index].status === 'rejected',
+      )
 
-      setRates(responses)
-      ratesRef.current = responses
-      writeCache(EXCHANGE_RATES_CACHE_KEY, responses)
-      setIsUsingCache(false)
+      if (responses.length === 0) {
+        throw results.find((result) => result.status === 'rejected')?.reason
+      }
+
+      const previousRatesById = ratesRef.current.reduce((accumulator, rate) => {
+        accumulator[rate.id] = rate
+        return accumulator
+      }, {})
+      const responsesById = responses.reduce((accumulator, rate) => {
+        accumulator[rate.id] = rate
+        return accumulator
+      }, {})
+      const mergedRates = RATE_OPTIONS.map((option) => {
+        return responsesById[option.id] ?? previousRatesById[option.id]
+      }).filter(Boolean)
+
+      setRates(mergedRates)
+      ratesRef.current = mergedRates
+      writeCache(EXCHANGE_RATES_CACHE_KEY, mergedRates)
+      setIsUsingCache(failedOptions.length > 0 && mergedRates.length > responses.length)
+      setError(
+        failedOptions.length > 0
+          ? `No se pudo actualizar ${failedOptions
+              .map((option) => option.title)
+              .join(', ')}. Mostrando el último valor disponible.`
+          : null,
+      )
     } catch (fetchError) {
-      if (fetchError.name === 'AbortError') return
+      if (fetchError?.name === 'AbortError') return
 
       setError(
         ratesRef.current.length > 0

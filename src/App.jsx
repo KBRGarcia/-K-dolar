@@ -13,7 +13,6 @@ function App() {
   const [selectedRateId, setSelectedRateId] = useState(DEFAULT_RATE_ID)
   const {
     ratesById,
-    defaultRate,
     updatedAt,
     loading,
     error,
@@ -25,7 +24,7 @@ function App() {
     error: historyError,
     refresh: refreshHistory,
   } = useHistoricalRates(activeView === 'history')
-  const activeRate = ratesById[selectedRateId] ?? defaultRate
+  const activeRate = ratesById[selectedRateId] ?? null
 
   return (
     <main className="min-h-screen overflow-hidden bg-slate-950 px-4 py-6 text-white sm:px-6 lg:px-8">

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { API_BASE_URL, RATE_OPTIONS } from '../constants/rates'
 import { readCache, writeCache } from '../utils/cacheStorage'
+import { fetchWithTimeout } from '../utils/fetchWithTimeout'
 
 const HISTORICAL_RATES_CACHE_KEY = 'k-dolar:historical-rates'
 
@@ -51,12 +52,15 @@ export function useHistoricalRates(enabled = true) {
     setError(null)
 
     try {
-      const histories = await Promise.all(
+      const results = await Promise.allSettled(
         RATE_OPTIONS.map(async (option) => {
-          const response = await fetch(`${API_BASE_URL}${option.historyEndpoint}`, {
-            headers: { Accept: 'application/json' },
-            signal: controller.signal,
-          })
+          const response = await fetchWithTimeout(
+            `${API_BASE_URL}${option.historyEndpoint}`,
+            {
+              headers: { Accept: 'application/json' },
+              signal: controller.signal,
+            },
+          )
 
           if (!response.ok) {
             throw new Error(`No se pudo consultar el histórico de ${option.title}.`)
@@ -76,15 +80,35 @@ export function useHistoricalRates(enabled = true) {
           ]
         }),
       )
+      const histories = results
+        .filter((result) => result.status === 'fulfilled')
+        .map((result) => result.value)
+      const failedOptions = RATE_OPTIONS.filter(
+        (_, index) => results[index].status === 'rejected',
+      )
 
-      const normalizedHistory = Object.fromEntries(histories)
+      if (histories.length === 0) {
+        throw results.find((result) => result.status === 'rejected')?.reason
+      }
+
+      const normalizedHistory = {
+        ...historyRef.current,
+        ...Object.fromEntries(histories),
+      }
 
       setHistoryById(normalizedHistory)
       historyRef.current = normalizedHistory
       writeCache(HISTORICAL_RATES_CACHE_KEY, normalizedHistory)
-      setIsUsingCache(false)
+      setIsUsingCache(failedOptions.length > 0)
+      setError(
+        failedOptions.length > 0
+          ? `No se pudo actualizar el histórico de ${failedOptions
+              .map((option) => option.title)
+              .join(', ')}. Mostrando el último histórico disponible.`
+          : null,
+      )
     } catch (fetchError) {
-      if (fetchError.name === 'AbortError') return
+      if (fetchError?.name === 'AbortError') return
 
       const hasCachedHistory = Object.values(historyRef.current).some(
         (history) => history.length > 0,
@@ -118,6 +142,7 @@ export function useHistoricalRates(enabled = true) {
     return () => {
       const controller = abortControllerRef.current
 
+      didFetchRef.current = false
       abortControllerRef.current = null
       controller?.abort()
     }
