@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "cap:sync": "npm run build && npx cap sync",
+    "cap:sync:android": "npm run build && npx cap sync android",
+    "cap:sync:ios": "npm run build && npx cap sync ios",
     "cap:open:android": "npx cap open android",
+    "cap:open:ios": "npx cap open ios",
     "apk:release": "npm run build && npx cap sync android && cd android && ./gradlew assembleRelease",
     "apk:copy": "cp android/app/build/outputs/apk/release/app-release.apk 'public/$k-dolar.apk'",
     "lint": "oxlint",
@@ -16,6 +19,7 @@
   "dependencies": {
     "@capacitor/android": "^8.4.1",
     "@capacitor/core": "^8.4.1",
+    "@capacitor/ios": "^8.4.1",
     "lucide-react": "^1.23.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"

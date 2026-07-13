@@ -1,11 +1,12 @@
-const APP_CACHE = 'k-dolar-app-v1'
-const API_CACHE = 'k-dolar-api-v1'
+const APP_CACHE = 'k-dolar-app-v2'
+const API_CACHE = 'k-dolar-api-v2'
 const APP_SHELL = [
   '/',
   '/logo.png',
   '/favicon-16x16.png',
   '/favicon-32x32.png',
   '/apple-touch-icon.png',
+  '/manifest.webmanifest',
 ]
 const API_ORIGIN = 'https://ve.dolarapi.com'
 
