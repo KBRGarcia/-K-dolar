@@ -1,5 +1,5 @@
 import { ArrowDownUp, Check, Copy, X } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 const MAX_DIGITS = 15
 
@@ -83,16 +83,47 @@ function CurrencyInput({
 
     if (!input) return
 
-    const length = input.value.length
-    requestAnimationFrame(() => {
-      input.setSelectionRange(length, length)
-    })
+    const length = displayValue.length
+    input.setSelectionRange(length, length)
+  }
+
+  useLayoutEffect(() => {
+    const input = inputRef.current
+
+    if (!input) return
+
+    const length = displayValue.length
+    input.setSelectionRange(length, length)
+  }, [displayValue])
+
+  const handleKeyDown = (event) => {
+    if (event.key !== 'Backspace' && event.key !== 'Delete') return
+
+    const input = inputRef.current
+
+    if (!input) return
+
+    const { selectionStart, selectionEnd } = input
+    const atEnd =
+      selectionStart === displayValue.length && selectionEnd === displayValue.length
+
+    if (!atEnd) return
+
+    event.preventDefault()
+
+    const nextDigits = digits.length <= 1 ? '0' : digits.slice(0, -1)
+
+    onDigitsChange(nextDigits)
   }
 
   const handleChange = (event) => {
-    const nextDigits = event.target.value.replace(/\D/g, '').slice(0, MAX_DIGITS)
+    const nextDigits = event.target.value.replace(/\D/g, '').slice(0, MAX_DIGITS) || '0'
 
-    onDigitsChange(nextDigits || '0')
+    if (nextDigits !== digits) {
+      onDigitsChange(nextDigits)
+      return
+    }
+
     placeCaretAtEnd()
   }
 
@@ -137,6 +168,7 @@ function CurrencyInput({
           inputMode="numeric"
           value={displayValue}
           onChange={handleChange}
+          onKeyDown={handleKeyDown}
           onClick={placeCaretAtEnd}
           onFocus={placeCaretAtEnd}
           disabled={disabled}
