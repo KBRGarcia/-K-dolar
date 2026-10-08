@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { API_BASE_URL, RATE_OPTIONS } from '../constants/rates'
 import { readCache, writeCache } from '../utils/cacheStorage'
-import { fetchWithTimeout } from '../utils/fetchWithTimeout'
+import { fetchWithTimeout, getFetchErrorMessage } from '../utils/fetchWithTimeout'
+import { roundRate } from '../utils/rateFormat'
 
 const HISTORICAL_RATES_CACHE_KEY = 'k-dolar:historical-rates'
 
 function getNumericRate(rate) {
-  const value = rate.promedio ?? rate.venta ?? rate.compra
-
-  return Number(value)
+  return roundRate(rate.promedio ?? rate.venta ?? rate.compra)
 }
 
 function normalizeHistoryItem(item, index, history) {
@@ -116,9 +115,13 @@ export function useHistoricalRates(enabled = true) {
 
       setError(
         hasCachedHistory
-          ? 'Sin conexión. Mostrando el último histórico guardado.'
-          : fetchError.message ||
+          ? fetchError?.name === 'RequestTimeoutError'
+            ? 'La consulta tardó demasiado. Mostrando el último histórico guardado.'
+            : 'Sin conexión. Mostrando el último histórico guardado.'
+          : getFetchErrorMessage(
+              fetchError,
               'No se pudo consultar el histórico. Verifica tu conexión.',
+            ),
       )
       setIsUsingCache(hasCachedHistory)
     } finally {

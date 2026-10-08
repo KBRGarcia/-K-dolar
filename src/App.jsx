@@ -83,7 +83,7 @@ function App() {
         )}
 
         {activeView === 'calculator' ? (
-          <Converter rate={activeRate} loading={loading} />
+          <Converter rate={activeRate} />
         ) : (
           <HistoryView
             historyById={historyById}

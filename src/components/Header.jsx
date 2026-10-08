@@ -1,22 +1,11 @@
 import { RefreshCw } from 'lucide-react'
 import { RATE_OPTIONS } from '../constants/rates'
-
-const currencyFormatter = new Intl.NumberFormat('es-VE', {
-  style: 'currency',
-  currency: 'VES',
-  maximumFractionDigits: 2,
-})
+import { formatVes } from '../utils/rateFormat'
 
 const dateFormatter = new Intl.DateTimeFormat('es-VE', {
   dateStyle: 'medium',
   timeStyle: 'short',
 })
-
-function formatRate(rate) {
-  if (!Number.isFinite(rate)) return 'No disponible'
-
-  return currencyFormatter.format(rate)
-}
 
 function formatUpdatedAt(updatedAt) {
   if (!updatedAt) return 'Pendiente de actualización'
@@ -57,8 +46,7 @@ function Header({
             Conversor de Bs.
           </h1>
           <p className="mt-3 max-w-xl text-sm leading-6 text-slate-300 sm:text-base">
-            Calcula al instante usando la cotización oficial o paralela
-            disponible en tiempo real.
+            Calcula al instante con el dólar oficial, el euro oficial o el USDT.
           </p>
         </div>
 
@@ -82,7 +70,9 @@ function Header({
             {selectedRate?.title ?? 'Cotización seleccionada'}
           </p>
           <p className="mt-2 text-xl font-bold text-white sm:text-3xl">
-            {loading ? 'Consultando...' : formatRate(currentRate)}
+            {loading && !Number.isFinite(currentRate)
+              ? 'Consultando...'
+              : formatVes(currentRate)}
           </p>
         </div>
 
@@ -91,7 +81,7 @@ function Header({
             Última actualización
           </p>
           <p className="mt-2 text-sm font-semibold text-slate-100 sm:text-lg">
-            {loading ? 'Sincronizando datos' : formatUpdatedAt(updatedAt)}
+            {loading && !updatedAt ? 'Sincronizando datos' : formatUpdatedAt(updatedAt)}
           </p>
         </div>
       </div>
@@ -114,11 +104,10 @@ function Header({
               <span className="block text-xs font-bold leading-tight sm:text-base">
                 {option.title}
               </span>
-              <span className="mt-2 block text-lg font-black sm:hidden">
-                {option.symbol}
-              </span>
-              <span className="mt-2 hidden text-xl font-black sm:block">
-                {loading ? option.symbol : formatRate(rate?.average)}
+              <span className="mt-2 block break-words text-[0.7rem] font-black leading-tight sm:text-xl">
+                {loading && !Number.isFinite(rate?.average)
+                  ? '...'
+                  : formatVes(rate?.average)}
               </span>
             </button>
           )

@@ -1,9 +1,6 @@
 import { useMemo, useState } from 'react'
 import { RATE_OPTIONS } from '../constants/rates'
-
-const valueFormatter = new Intl.NumberFormat('es-VE', {
-  maximumFractionDigits: 2,
-})
+import { formatVesDecimal } from '../utils/rateFormat'
 
 const CHART_LIMIT = 90
 const VIEW_BOX = {
@@ -12,33 +9,69 @@ const VIEW_BOX = {
   padding: 28,
 }
 
-function getVisibleHistory(history) {
-  return history.slice(-CHART_LIMIT)
+function parseHistoryTime(dateValue) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(dateValue ?? ''))
+
+  if (!match) return null
+
+  return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])).getTime()
 }
 
-function getChartCoordinates(history, minValue, maxValue) {
-  const visibleHistory = history.slice(-CHART_LIMIT)
-  const range = maxValue - minValue || 1
+function formatAxisDateFromTime(time) {
+  const date = new Date(time)
+  const day = String(date.getDate()).padStart(2, '0')
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+
+  return `${day}/${month}`
+}
+
+function getVisibleHistory(history) {
+  return history.slice(-CHART_LIMIT).flatMap((item) => {
+    const time = parseHistoryTime(item.date)
+
+    return time === null ? [] : [{ ...item, time }]
+  })
+}
+
+function getTimeDomain(series) {
+  const times = series.flatMap((serie) =>
+    getVisibleHistory(serie.history).map((item) => item.time),
+  )
+
+  if (times.length === 0) return null
+
+  return {
+    minTime: Math.min(...times),
+    maxTime: Math.max(...times),
+  }
+}
+
+function getX(time, domain) {
   const chartWidth = VIEW_BOX.width - VIEW_BOX.padding * 2
+
+  if (!domain || domain.maxTime === domain.minTime) {
+    return VIEW_BOX.padding + chartWidth / 2
+  }
+
+  return (
+    VIEW_BOX.padding +
+    ((time - domain.minTime) / (domain.maxTime - domain.minTime)) * chartWidth
+  )
+}
+
+function getChartCoordinates(history, minValue, maxValue, domain) {
+  const visibleHistory = getVisibleHistory(history)
+  const range = maxValue - minValue || 1
   const chartHeight = VIEW_BOX.height - VIEW_BOX.padding * 2
 
-  return visibleHistory.map((item, index) => {
-    const x =
-      VIEW_BOX.padding +
-      (visibleHistory.length === 1
-        ? chartWidth / 2
-        : (index / (visibleHistory.length - 1)) * chartWidth)
-    const y =
+  return visibleHistory.map((item) => ({
+    x: getX(item.time, domain),
+    y:
       VIEW_BOX.padding +
       chartHeight -
-      ((item.value - minValue) / range) * chartHeight
-
-    return {
-      x,
-      y,
-      item,
-    }
-  })
+      ((item.value - minValue) / range) * chartHeight,
+    item,
+  }))
 }
 
 function getHorizontalGuides(minValue, maxValue) {
@@ -56,23 +89,20 @@ function getHorizontalGuides(minValue, maxValue) {
   })
 }
 
-function getVerticalGuides(series) {
-  const longestHistory = series.reduce((longest, currentSerie) => {
-    return currentSerie.history.length > longest.length ? currentSerie.history : longest
-  }, [])
-  const visibleHistory = getVisibleHistory(longestHistory)
-  const guideCount = Math.min(5, visibleHistory.length)
+function getVerticalGuides(domain) {
+  if (!domain) return []
+
+  const guideCount = domain.maxTime === domain.minTime ? 1 : 5
   const chartWidth = VIEW_BOX.width - VIEW_BOX.padding * 2
 
-  if (guideCount === 0) return []
-
   return Array.from({ length: guideCount }, (_, index) => {
-    const ratio = guideCount === 1 ? 0 : index / (guideCount - 1)
-    const historyIndex = Math.round(ratio * (visibleHistory.length - 1))
-    const item = visibleHistory[historyIndex]
-    const x = VIEW_BOX.padding + ratio * chartWidth
+    const ratio = guideCount === 1 ? 0.5 : index / (guideCount - 1)
+    const time = domain.minTime + ratio * (domain.maxTime - domain.minTime)
 
-    return { x, label: item?.date?.slice(5).replace('-', '/') ?? '' }
+    return {
+      x: VIEW_BOX.padding + ratio * chartWidth,
+      label: formatAxisDateFromTime(time),
+    }
   })
 }
 
@@ -88,7 +118,7 @@ function HistoryChart({ historyById, loading, error, onRefresh }) {
 
   const valueRange = useMemo(() => {
     const values = selectedSeries.flatMap((serie) =>
-      serie.history.slice(-CHART_LIMIT).map((item) => item.value),
+      getVisibleHistory(serie.history).map((item) => item.value),
     )
 
     if (values.length === 0) return { min: 0, max: 1 }
@@ -103,9 +133,13 @@ function HistoryChart({ historyById, loading, error, onRefresh }) {
     return getHorizontalGuides(valueRange.min, valueRange.max)
   }, [valueRange])
 
-  const verticalGuides = useMemo(() => {
-    return getVerticalGuides(selectedSeries)
+  const timeDomain = useMemo(() => {
+    return getTimeDomain(selectedSeries)
   }, [selectedSeries])
+
+  const verticalGuides = useMemo(() => {
+    return getVerticalGuides(timeDomain)
+  }, [timeDomain])
 
   const toggleRate = (rateId) => {
     setSelectedIds((currentIds) => {
@@ -176,6 +210,10 @@ function HistoryChart({ historyById, loading, error, onRefresh }) {
           <div className="flex h-64 items-center justify-center text-slate-300">
             Cargando gráfico histórico...
           </div>
+        ) : selectedSeries.length === 0 ? (
+          <div className="flex h-64 items-center justify-center px-6 text-center text-slate-300">
+            No hay datos históricos para las monedas seleccionadas.
+          </div>
         ) : (
           <svg
             viewBox={`0 0 ${VIEW_BOX.width} ${VIEW_BOX.height}`}
@@ -199,7 +237,7 @@ function HistoryChart({ historyById, loading, error, onRefresh }) {
                   fill="rgba(255,255,255,0.50)"
                   fontSize="13"
                 >
-                  {valueFormatter.format(guide.value)}
+                  {formatVesDecimal(guide.value)}
                 </text>
               </g>
             ))}
@@ -242,6 +280,7 @@ function HistoryChart({ historyById, loading, error, onRefresh }) {
                 serie.history,
                 valueRange.min,
                 valueRange.max,
+                timeDomain,
               )
               const latestPoint = coordinates.at(-1)
 
@@ -274,7 +313,7 @@ function HistoryChart({ historyById, loading, error, onRefresh }) {
                         fontSize="13"
                         fontWeight="700"
                       >
-                        {valueFormatter.format(latestPoint.item.value)}
+                        {formatVesDecimal(latestPoint.item.value)}
                       </text>
                     </>
                   )}

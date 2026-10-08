@@ -1,12 +1,8 @@
 import { ArrowDownUp, Check, Copy, X } from 'lucide-react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { formatVesDecimal, roundRate } from '../utils/rateFormat'
 
 const MAX_DIGITS = 15
-
-const rateFormatter = new Intl.NumberFormat('es-VE', {
-  maximumFractionDigits: 2,
-  minimumFractionDigits: 2,
-})
 
 function digitsToAmount(digits) {
   const cents = Number(String(digits || '0').replace(/\D/g, '') || '0')
@@ -30,6 +26,16 @@ function formatDisplay(digits) {
   const withThousands = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
 
   return `${withThousands},${decimalPart}`
+}
+
+function normalizeDigits(value) {
+  const digits = String(value ?? '')
+    .replace(/\D/g, '')
+    .slice(0, MAX_DIGITS)
+
+  if (!digits || Number(digits) === 0) return '0'
+
+  return digits
 }
 
 function formatClipboard(digits) {
@@ -81,19 +87,31 @@ function CurrencyInput({
   const placeCaretAtEnd = () => {
     const input = inputRef.current
 
-    if (!input) return
+    if (!input || document.activeElement !== input) return
 
-    const length = displayValue.length
-    input.setSelectionRange(length, length)
+    const end = displayValue.length
+
+    input.value = displayValue
+    input.setSelectionRange(end, end)
   }
 
   useLayoutEffect(() => {
-    const input = inputRef.current
+    const moveCaret = () => {
+      const input = inputRef.current
 
-    if (!input) return
+      if (!input || document.activeElement !== input) return
 
-    const length = displayValue.length
-    input.setSelectionRange(length, length)
+      const end = displayValue.length
+
+      input.value = displayValue
+      input.setSelectionRange(end, end)
+    }
+
+    moveCaret()
+
+    const frame = requestAnimationFrame(moveCaret)
+
+    return () => cancelAnimationFrame(frame)
   }, [displayValue])
 
   const handleKeyDown = (event) => {
@@ -105,19 +123,20 @@ function CurrencyInput({
 
     const { selectionStart, selectionEnd } = input
     const atEnd =
-      selectionStart === displayValue.length && selectionEnd === displayValue.length
+      selectionStart == null ||
+      selectionEnd == null ||
+      (selectionStart === displayValue.length &&
+        selectionEnd === displayValue.length)
 
     if (!atEnd) return
 
     event.preventDefault()
-
-    const nextDigits = digits.length <= 1 ? '0' : digits.slice(0, -1)
-
-    onDigitsChange(nextDigits)
+    onDigitsChange(digits.length <= 1 ? '0' : digits.slice(0, -1))
+    placeCaretAtEnd()
   }
 
   const handleChange = (event) => {
-    const nextDigits = event.target.value.replace(/\D/g, '').slice(0, MAX_DIGITS) || '0'
+    const nextDigits = normalizeDigits(event.target.value)
 
     if (nextDigits !== digits) {
       onDigitsChange(nextDigits)
@@ -166,6 +185,9 @@ function CurrencyInput({
           ref={inputRef}
           type="text"
           inputMode="numeric"
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
           value={displayValue}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
@@ -190,7 +212,7 @@ function CurrencyInput({
   )
 }
 
-function Converter({ rate, loading }) {
+function Converter({ rate }) {
   const { code: foreignCode, label: foreignLabel } = getForeignCurrencyMeta(rate)
   const [vesOnTop, setVesOnTop] = useState(false)
   const [topDigits, setTopDigits] = useState('0')
@@ -200,10 +222,10 @@ function Converter({ rate, loading }) {
   const vesOnTopRef = useRef(vesOnTop)
   const lastEditedCurrencyRef = useRef('foreign')
 
-  const exchangeRate = rate?.average
+  const exchangeRate = roundRate(rate?.average)
   const topCurrency = vesOnTop ? 'VES' : foreignCode
   const bottomCurrency = vesOnTop ? foreignCode : 'VES'
-  const disabled = loading || !Number.isFinite(exchangeRate)
+  const disabled = !Number.isFinite(exchangeRate) || exchangeRate === 0
 
   useEffect(() => {
     topDigitsRef.current = topDigits
@@ -216,7 +238,7 @@ function Converter({ rate, loading }) {
       return 'Esperando una cotización válida para convertir.'
     }
 
-    return `1 ${foreignCode} = ${rateFormatter.format(exchangeRate)} VES`
+    return `1 ${foreignCode} = ${formatVesDecimal(exchangeRate)} VES`
   }, [foreignCode, exchangeRate])
 
   useEffect(() => {

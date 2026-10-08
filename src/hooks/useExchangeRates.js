@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { API_BASE_URL, DEFAULT_RATE_ID, RATE_OPTIONS } from '../constants/rates'
 import { readCache, writeCache } from '../utils/cacheStorage'
-import { fetchWithTimeout } from '../utils/fetchWithTimeout'
+import { fetchWithTimeout, getFetchErrorMessage } from '../utils/fetchWithTimeout'
+import { roundRate } from '../utils/rateFormat'
 
 const EXCHANGE_RATES_CACHE_KEY = 'k-dolar:exchange-rates'
 
 function getNumericRate(rate) {
-  const value = rate.promedio ?? rate.venta ?? rate.compra
-
-  return Number(value)
+  return roundRate(rate.promedio ?? rate.venta ?? rate.compra)
 }
 
 function normalizeRate(rate, option) {
@@ -107,9 +106,13 @@ export function useExchangeRates() {
 
       setError(
         ratesRef.current.length > 0
-          ? 'Sin conexión. Mostrando la última cotización guardada.'
-          : fetchError.message ||
+          ? fetchError?.name === 'RequestTimeoutError'
+            ? 'La consulta tardó demasiado. Mostrando la última cotización guardada.'
+            : 'Sin conexión. Mostrando la última cotización guardada.'
+          : getFetchErrorMessage(
+              fetchError,
               'No se pudieron consultar las cotizaciones. Verifica tu conexión.',
+            ),
       )
       setIsUsingCache(ratesRef.current.length > 0)
     } finally {

@@ -89,7 +89,9 @@ async function navigationFirst(request) {
 
     return response
   } catch {
-    return cache.match('/') || Response.error()
+    const cachedResponse = await cache.match('/')
+
+    return cachedResponse || Response.error()
   }
 }
 
@@ -99,11 +101,15 @@ async function cacheFirst(request, cacheName) {
 
   if (cachedResponse) return cachedResponse
 
-  const response = await fetch(request)
+  try {
+    const response = await fetch(request)
 
-  if (response.ok) {
-    cache.put(request, response.clone())
+    if (response.ok) {
+      cache.put(request, response.clone())
+    }
+
+    return response
+  } catch {
+    return Response.error()
   }
-
-  return response
 }

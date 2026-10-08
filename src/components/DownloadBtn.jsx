@@ -17,10 +17,10 @@ function DownloadBtn() {
   const isApkAvailable = downloadStatus === 'available'
 
   const platformLabel = isIOS
-    ? 'App de Apple/ IOS'
+    ? 'app para iPhone'
     : isAndroid
-      ? 'App de Android'
-      : 'App'
+      ? 'app para Android'
+      : 'app'
 
   useEffect(() => {
     if (isNativeApp || isIOS) return undefined

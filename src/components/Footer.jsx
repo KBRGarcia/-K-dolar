@@ -8,7 +8,8 @@ function Footer() {
         Equipo de desarrollo <span className="text-slate-300">The Ghost</span>
       </p>
       <p className="mt-2 normal-case tracking-normal">
-        Fuente de consulta: Banco Central de Venezuela (BCV)
+        Dólar y euro oficiales: Banco Central de Venezuela (BCV). USDT:
+        referencia de mercado.
       </p>
     </footer>
   )

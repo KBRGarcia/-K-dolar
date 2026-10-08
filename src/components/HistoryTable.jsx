@@ -1,12 +1,7 @@
 import { ArrowDown, ArrowRight, ArrowUp } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { DEFAULT_RATE_ID, RATE_OPTIONS } from '../constants/rates'
-
-const valueFormatter = new Intl.NumberFormat('es-VE', {
-  style: 'currency',
-  currency: 'VES',
-  maximumFractionDigits: 2,
-})
+import { formatVes } from '../utils/rateFormat'
 
 const percentFormatter = new Intl.NumberFormat('es-VE', {
   maximumFractionDigits: 2,
@@ -117,6 +112,12 @@ function HistoryTable({ historyById, loading }) {
                     Cargando histórico...
                   </td>
                 </tr>
+              ) : rows.length === 0 ? (
+                <tr>
+                  <td className="px-4 py-6 text-center text-slate-300" colSpan="4">
+                    No hay registros para esta moneda.
+                  </td>
+                </tr>
               ) : (
                 rows.map((item) => {
                   const trend = getTrend(item)
@@ -128,10 +129,10 @@ function HistoryTable({ historyById, loading }) {
                         {formatDate(item.date)}
                       </td>
                       <td className="whitespace-nowrap px-4 py-4">
-                        {valueFormatter.format(item.value)}
+                        {formatVes(item.value)}
                       </td>
                       <td className={`whitespace-nowrap px-4 py-4 ${trend.className}`}>
-                        {valueFormatter.format(item.change)} (
+                        {formatVes(item.change)} (
                         {percentFormatter.format(item.changePercent)}%)
                       </td>
                       <td className={`whitespace-nowrap px-4 py-4 ${trend.className}`}>
