@@ -21,6 +21,58 @@ function normalizeRate(rate, option) {
   }
 }
 
+const CARACAS_TIME_ZONE = 'America/Caracas'
+
+// Sábado y domingo el BCV no publica: se usa la tasa del lunes siguiente,
+// que el BCV ya anunció el viernes y la API expone en el histórico.
+function getWeekendTargetMonday(now = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: CARACAS_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    weekday: 'short',
+  }).formatToParts(now)
+  const get = (type) => parts.find((part) => part.type === type)?.value
+  const daysUntilMonday = { Sat: 2, Sun: 1 }[get('weekday')]
+
+  if (!daysUntilMonday) return null
+
+  const monday = new Date(
+    Date.UTC(Number(get('year')), Number(get('month')) - 1, Number(get('day'))),
+  )
+
+  monday.setUTCDate(monday.getUTCDate() + daysUntilMonday)
+
+  return monday.toISOString().slice(0, 10)
+}
+
+async function fetchWeekendOfficialRate(option, signal) {
+  const targetDate = getWeekendTargetMonday()
+
+  if (!targetDate || option.source !== 'oficial' || !option.historyEndpoint) return null
+
+  try {
+    const response = await fetchWithTimeout(`${API_BASE_URL}${option.historyEndpoint}`, {
+      headers: { Accept: 'application/json' },
+      signal,
+    })
+
+    if (!response.ok) return null
+
+    const history = await response.json()
+    const entry = Array.isArray(history)
+      ? history.find((item) => item.fecha === targetDate)
+      : null
+
+    return entry ? { rate: getNumericRate(entry), date: targetDate } : null
+  } catch (error) {
+    if (error?.name === 'AbortError') throw error
+
+    return null
+  }
+}
+
 function getLatestUpdate(rates) {
   return rates.reduce((latestDate, rate) => {
     if (!rate.updatedAt) return latestDate
@@ -64,7 +116,15 @@ export function useExchangeRates() {
             throw new Error(`No se pudo consultar ${option.title}.`)
           }
 
-          return normalizeRate(await response.json(), option)
+          const normalized = normalizeRate(await response.json(), option)
+          const weekendRate = await fetchWeekendOfficialRate(option, controller.signal)
+
+          if (weekendRate && Number.isFinite(weekendRate.rate)) {
+            normalized.average = weekendRate.rate
+            normalized.effectiveDate = weekendRate.date
+          }
+
+          return normalized
         }),
       )
       const responses = results
