@@ -113,6 +113,59 @@ function getVerticalGuides(domain, dims) {
   })
 }
 
+function getNiceStep(rawStep) {
+  const magnitude = 10 ** Math.floor(Math.log10(rawStep))
+  const normalized = rawStep / magnitude
+  const nice = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 2.5 ? 2.5 : normalized <= 5 ? 5 : 10
+
+  return nice * magnitude
+}
+
+// Guías densas que se adaptan al zoom (estilo gráficas de mercado).
+function getDenseHorizontalGuides(minValue, maxValue, dims) {
+  const plotHeight = dims.height - dims.padding * 2
+  const range = maxValue - minValue || 1
+  const targetCount = Math.max(4, Math.floor(plotHeight / 46))
+  const step = getNiceStep(range / targetCount)
+  const guides = []
+
+  for (let value = Math.ceil(minValue / step) * step; value <= maxValue + step * 1e-6; value += step) {
+    guides.push({
+      value,
+      y: dims.padding + plotHeight - ((value - minValue) / range) * plotHeight,
+    })
+  }
+
+  return guides
+}
+
+const DAY_STEPS = [1, 2, 3, 5, 7, 14, 30]
+
+function getDenseVerticalGuides(domain, dims) {
+  if (!domain || domain.maxTime === domain.minTime) return []
+
+  const plotWidth = dims.width - dims.padding * 2
+  const spanDays = (domain.maxTime - domain.minTime) / DAY_MS
+  const maxCount = Math.max(3, Math.floor(plotWidth / 64))
+  const stepDays = DAY_STEPS.find((step) => spanDays / step <= maxCount) ?? 60
+  const cursor = new Date(domain.minTime)
+
+  cursor.setHours(0, 0, 0, 0)
+  if (cursor.getTime() < domain.minTime) cursor.setDate(cursor.getDate() + 1)
+
+  const guides = []
+
+  while (cursor.getTime() <= domain.maxTime) {
+    guides.push({
+      x: getX(cursor.getTime(), domain, dims),
+      label: formatAxisDateFromTime(cursor.getTime()),
+    })
+    cursor.setDate(cursor.getDate() + stepDays)
+  }
+
+  return guides
+}
+
 function clampView(view, fullDomain) {
   const fullSpan = fullDomain.maxTime - fullDomain.minTime
   const minSpan = Math.min(MIN_ZOOM_SPAN, fullSpan)
@@ -157,10 +210,16 @@ function ChartCanvas({
   }, [series, domain, interactive])
 
   const horizontalGuides = useMemo(
-    () => getHorizontalGuides(valueRange.min, valueRange.max, dims),
-    [valueRange, dims],
+    () =>
+      interactive
+        ? getDenseHorizontalGuides(valueRange.min, valueRange.max, dims)
+        : getHorizontalGuides(valueRange.min, valueRange.max, dims),
+    [valueRange, dims, interactive],
   )
-  const verticalGuides = useMemo(() => getVerticalGuides(domain, dims), [domain, dims])
+  const verticalGuides = useMemo(
+    () => (interactive ? getDenseVerticalGuides(domain, dims) : getVerticalGuides(domain, dims)),
+    [domain, dims, interactive],
+  )
   const plotWidth = dims.width - dims.padding * 2
   const clipId = `clip-${interactive ? 'full' : 'inline'}`
 
