@@ -658,15 +658,24 @@ function FullscreenChart({ series, fullDomain, onClose }) {
         height: viewport.width,
         transform: 'rotate(90deg)',
         transformOrigin: '0 0',
+        // Al rotar, la izquierda queda arriba (barra de estado) y la derecha
+        // abajo (botones de navegación del teléfono): se reserva espacio.
+        paddingLeft: 48,
+        paddingRight: 80,
       }
-    : { position: 'fixed', inset: 0 }
+    : {
+        position: 'fixed',
+        inset: 0,
+        paddingTop: 'max(12px, env(safe-area-inset-top))',
+        paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
+      }
 
   const buttonClass =
     'inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/10 text-white transition hover:bg-white/20 disabled:opacity-40'
 
   return createPortal(
     <div className="fixed inset-0 z-50 bg-slate-950">
-      <div style={layoutStyle} className="flex flex-col bg-slate-950 p-3 text-white">
+      <div style={layoutStyle} className="flex flex-col bg-slate-950 px-3 py-3 text-white">
         <div className="flex items-center justify-between gap-3 pb-2">
           <div className="flex flex-wrap items-center gap-3">
             {series.map((serie) => (
